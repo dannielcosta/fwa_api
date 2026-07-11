@@ -8,6 +8,7 @@ import swaggerUi from 'swagger-ui-express'
 import { corsOptions } from './config/cors.js'
 import { swaggerSpec } from './config/swagger.js'
 import { errorHandler, notFoundHandler } from './middlewares/error-handler.js'
+import authRoutes from './modules/auth/auth.routes.js'
 
 export function createApp() {
   const app = express()
@@ -35,8 +36,9 @@ export function createApp() {
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
-  // Módulos registados à medida que forem implementados (ver plano):
-  // app.use('/api/auth', authRoutes)
+  app.use('/api/auth', authRoutes)
+
+  // Restantes módulos registados à medida que forem implementados (ver plano):
   // app.use('/api/plans', plansRoutes)
   // ...
 
