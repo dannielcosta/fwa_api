@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth / Users ──────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phoneNumber  String?
+  address      String?
+  birthDate    DateTime?
+  nationality  String?
+  nif          String?
+  weight       Float?
+  height       Float?
+  role         UserRole  @default(USER)
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  subscriptions       Subscription[]
+  payments            Payment[]
+  supportContacts     SupportContact[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─── Subscriptions / Plans / Payments ──────────────────────────────────────
+
+enum PlanPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+model Plan {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  price     Decimal    @db.Decimal(10, 2)
+  period    PlanPeriod
+  saving    String?
+  features  String[]
+  featured  Boolean    @default(false)
+  badge     String?
+
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("plans")
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(PENDING)
+  startDate            DateTime?
+  endDate              DateTime?
+  stripeSubscriptionId String?            @unique
+  stripeCustomerId     String?
+
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId        String?
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id])
+  amount                Decimal       @db.Decimal(10, 2)
+  currency              String        @default("eur")
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?       @unique
+  paidAt                DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("payments")
+}
+
+// ─── Treinos ────────────────────────────────────────────────────────────────
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model TrainingCategory {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+
+  programs TrainingProgram[]
+
+  createdAt DateTime @default(now())
+
+  @@map("training_categories")
+}
+
+model TrainingProgram {
+  id            String     @id @default(cuid())
+  categoryId    String
+  category      TrainingCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  title         String
+  description   String
+  imageUrl      String?
+  difficulty    Difficulty
+  durationWeeks Int
+  objective     String
+
+  workouts Workout[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@map("training_programs")
+}
+
+model Workout {
+  id              String  @id @default(cuid())
+  programId       String
+  program         TrainingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  durationMinutes Int
+  order           Int     @default(0)
+
+  exercises Exercise[]
+  video     WorkoutVideo?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId])
+  @@map("workouts")
+}
+
+model Exercise {
+  id          String  @id @default(cuid())
+  workoutId   String
+  workout     Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  name        String
+  sets        Int
+  reps        String
+  restSeconds Int
+  order       Int     @default(0)
+
+  @@index([workoutId])
+  @@map("exercises")
+}
+
+model WorkoutVideo {
+  id              String  @id @default(cuid())
+  workoutId       String  @unique
+  workout         Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  url             String
+  durationSeconds Int?
+
+  createdAt DateTime @default(now())
+
+  @@map("workout_videos")
+}
+
+// ─── Suporte ────────────────────────────────────────────────────────────────
+
+enum SupportContactStatus {
+  OPEN
+  CLOSED
+}
+
+model SupportContact {
+  id      String                @id @default(cuid())
+  userId  String?
+  user    User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name    String
+  email   String
+  phone   String?
+  message String
+  status  SupportContactStatus  @default(OPEN)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("support_contacts")
+}
