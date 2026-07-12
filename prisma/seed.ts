@@ -1,6 +1,18 @@
-import { PrismaClient, PlanPeriod } from '@prisma/client'
+import { PrismaClient, PlanPeriod, UserRole } from '@prisma/client'
+import { hashPassword } from '../src/utils/password.js'
 
 const prisma = new PrismaClient()
+
+// DEV ONLY — credenciais fixas só para haver uma conta admin em ambiente
+// de desenvolvimento (não existe nenhum outro caminho para criar uma:
+// o signup nunca aceita role, e não há endpoint de promoção). Nunca usar
+// em produção.
+const DEV_ADMIN = {
+  email: 'admin@fwa.pt',
+  password: 'admin12345',
+  firstName: 'Admin',
+  lastName: 'FWA',
+}
 
 // Mantido em sincronia com src/features/landing/data.ts no fwa_frontend
 // até o passo 7 (Landing Page passa a consumir GET /plans).
@@ -56,6 +68,22 @@ async function main() {
     })
   }
   console.log(`Seed concluído: ${plans.length} planos.`)
+
+  const passwordHash = await hashPassword(DEV_ADMIN.password)
+  await prisma.user.upsert({
+    where: { email: DEV_ADMIN.email },
+    update: { role: UserRole.ADMIN },
+    create: {
+      email: DEV_ADMIN.email,
+      passwordHash,
+      firstName: DEV_ADMIN.firstName,
+      lastName: DEV_ADMIN.lastName,
+      role: UserRole.ADMIN,
+    },
+  })
+  console.log(
+    `Seed concluído: conta admin dev pronta (${DEV_ADMIN.email} / ${DEV_ADMIN.password}).`,
+  )
 }
 
 main()
