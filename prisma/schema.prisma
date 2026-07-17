@@ -83,7 +83,7 @@ model Plan {
   price     Decimal    @db.Decimal(10, 2)
   period    PlanPeriod
   saving    String?
-  features  String[]
+  features  Json
   featured  Boolean    @default(false)
   badge     String?
 
