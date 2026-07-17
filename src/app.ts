@@ -36,7 +36,7 @@ export function createApp() {
 
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
-  app.use('/api/auth', authRoutes)
+  app.use('/auth', authRoutes)
 
   // Restantes módulos registados à medida que forem implementados (ver plano):
   // app.use('/api/plans', plansRoutes)
